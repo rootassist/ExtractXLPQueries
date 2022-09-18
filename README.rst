@@ -11,10 +11,12 @@ ExcelのワークブックからPower Queryのソースコード(M言語)やそ�
 =====================
 Description
 =====================
-Microsoftが発行している以下の技術文書に基づいて、ExcelのワークブックからPower Queryのソースコード(M言語)やその他の管理情報を取り出します  
+Microsoftが発行している以下の技術文書に基づいて、ExcelのワークブックからPower Queryのソースコード(M言語)やその他の管理情報を取り出します 
+
 - https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-qdeff/27b1dd1e-7de8-45d9-9c84-dfcc7a802e37
 
-pythonは以下のバージョンのもの動作確認しています(動作確認はWindowsでしか行っていません)  
+pythonは以下のバージョンで動作確認しています(動作確認はWindowsでしか行っていません)
+
 - python 3.10.4  
 
 =====================
