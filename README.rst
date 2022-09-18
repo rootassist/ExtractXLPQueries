@@ -29,6 +29,6 @@ python ExtractXLPQueries.py (ワークブックのフルパス)
   Package/Formulas/Section1.m
 
 =====================
-ライセンス
+License
 =====================
 このコードはMITライセンスです。自由にご利用ください。
