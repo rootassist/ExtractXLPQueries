@@ -23,7 +23,65 @@ def file_output(content_string, zpc_name, output_path, dtype):
                 f.write(content_string)
 
 
-def zpc_extract(zpc, output_path):
+def output_queries(queries_lines, queries_output_path):
+
+    # 改行でistに分解する
+    queries_lines_list = queries_lines.splitlines()
+
+    #クエリーの先頭パターン
+    ptn = '(^shared )(.*)( = )(.*)'
+
+    # クエリーの行中を処理しているならTrue
+    in_str = False
+    # 行のバッファーの初期化
+    str_list = []
+    #クエリーの出力ファイルイメージ
+    query_files = {}
+    
+    # ファイルを1行ずつ処理
+    for queries_line in queries_lines_list:
+
+        # 先頭行は読み飛ばし
+        if queries_line[0:17] == 'section Section1;':
+            continue
+
+        if queries_line[0:23] == '[ FunctionQueryBinding ':
+            # Functionの定義行
+            str_list.append(queries_line + '\n')
+            continue
+
+        #今クエリーの行中でなければ
+        if not in_str:
+            # クエリーの先頭パターンかどうか
+            res = re.search(ptn, queries_line)
+            if res:
+                # 先頭パターンの場合
+                query_name = res.group(2)
+                if query_name[0] == "#":
+                    query_name = query_name[1:].strip('"')
+                stn = res.group(4)
+                str_list.append(stn + '\n')
+                in_str = True
+        else:
+            # 行を追加    
+            str_list.append(queries_line + '\n')
+        
+        # 最終行だったら
+        if queries_line[-1:] == ';':
+            # すべての行を辞書に登録する
+            query_files[query_name] = str_list
+            # 行のバッファーの初期化
+            str_list = []
+            # クエリーの行の外に設定する
+            in_str = False
+    
+    #ファイル出力
+    for query_filename, content_string_list in query_files.items():
+        content_string = ''.join(content_string_list)
+        file_output(content_string, query_filename + '.pq', queries_output_path, 'text')
+
+
+def zpc_extract(zpc, package_output_path, queries_output_path):
     
         # メモリー上のzipファイルのByte列をzipファイルとして扱う
         zpc_object = zipfile.ZipFile(io.BytesIO(zpc))
@@ -34,10 +92,15 @@ def zpc_extract(zpc, output_path):
             # zipファイル内のメンバーの内容
             zpc_content = zpc_object.open(zpc_name, 'r').read()
             zpc_content_string = zpc_content.decode()
-            zpc_content_string = pretty_Xml(zpc_content_string) # XMLの場合整形
 
-            #ファイル出力
-            file_output(zpc_content_string, zpc_name, output_path, 'text')
+            if zpc_name == 'Formulas/Section1.m':
+                #クエリーのソースコード出力
+                output_queries(zpc_content_string, queries_output_path)
+            else:
+                #その他パッケージ
+                zpc_content_string = pretty_Xml(zpc_content_string) # XMLの場合整形
+                #ファイル出力
+                file_output(zpc_content_string, zpc_name, package_output_path, 'text')
 
 
 def pretty_Xml(content_string):
@@ -90,14 +153,18 @@ def main(source_file):
             if not os.path.exists(package_output_path):
                 os.makedirs(package_output_path)
 
+            queries_output_path = os.path.join(output_path, "QueryCodes")
+            if not os.path.exists(queries_output_path):
+                os.makedirs(queries_output_path)
+
             # 4バイトのリトルエンディアンがzipファイルの長さ
             zpc_length = int.from_bytes(bin_stream[zpc_position:zpc_position + 4], byteorder='little')
             zpc_position += 4
             zpc = bin_stream[zpc_position:zpc_position + zpc_length]
             zpc_position += zpc_length
             
-            # 展開して出力
-            zpc_extract(zpc, package_output_path)
+            # 展開して出力 (Packageとクエリーの出力先)
+            zpc_extract(zpc, package_output_path, queries_output_path)
             
             
             ## Permissions Part
@@ -163,7 +230,7 @@ def main(source_file):
             zpc_position += zpc_length
             
             # 展開して出力
-            zpc_extract(zpc, Metadata_Content_output_path)
+            zpc_extract(zpc, Metadata_Content_output_path, '')
             
             
             ## Permissions Bindings Part
