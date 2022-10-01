@@ -1,8 +1,36 @@
 import os, sys, io, re
 import base64, zipfile
 import urllib.parse
+from pathlib import Path
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
+from argparse import ArgumentParser
+
+OFFICE_FILE_EXTENSIONS = (
+    '.xlsb', '.xlsx', '.xlsm', '.xlam',  # Excelワークブック
+)
+
+def get_args():
+    parser = ArgumentParser(description='')
+    parser.add_argument('sources', metavar='MS_OFFICE_FILE', type=str, nargs='+',
+                        help='展開するExcelワークブックのファイルまたはディレクトリへのパス.')
+    parser.add_argument('--recursive', action='store_true',
+                        help='sourcesパラメータにディレクトリが指定されている場合、サブディレクトリを再帰的に検索する.')
+    return parser.parse_args()
+
+
+def get_source_paths(sources, recursive):
+    for src in sources:
+        p = Path(src)
+        # sourceがディレクトリの場合、その下にあるソースファイルを探す
+        if p.is_dir(): 
+            for file in p.glob("**/*" if recursive else "*"):
+                f = Path(file)
+                if not f.name.startswith('~$') and f.suffix.lower() in OFFICE_FILE_EXTENSIONS:
+                    yield f.absolute()
+        # source がファイルの場合、その絶対パスを返す
+        else: 
+            yield p.absolute()
 
 
 def file_output(content_string, zpc_name, output_path, dtype):
@@ -255,15 +283,8 @@ def main(source_file):
 
 
 if __name__ == '__main__':
+    args = get_args()
 
-    args = sys.argv
-
-    if 2<= len(args):
-
-        # 解析するワークブックのパス
-        source_file = str(args[1])
-
+    for source_file in get_source_paths(args.sources, args.recursive):
         main(source_file)
 
-    else:
-        print('usage: ExtractQuery.py (ワークブックのパス)')
