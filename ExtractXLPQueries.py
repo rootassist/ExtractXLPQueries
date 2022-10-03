@@ -148,7 +148,7 @@ def pretty_Xml(content_string):
     return minidom.parseString(content_string).toprettyxml()
 
 
-def main(source_file, output_path):
+def main(source_file, output_src_path, output_xml_path):
     zip_object  = zipfile.ZipFile(source_file)
 
     # ワークブックをzipファイルとして格納されているファイルを確認する
@@ -176,12 +176,11 @@ def main(source_file, output_path):
             ## Package Part
 
             # 出力ディレクトリ
-            package_output_path = os.path.join(output_path, "xml")
-            package_output_path = os.path.join(package_output_path, "Package")
+            package_output_path = os.path.join(output_xml_path, "Package")
             if not os.path.exists(package_output_path):
                 os.makedirs(package_output_path)
 
-            queries_output_path = os.path.join(output_path, "QueryCodes")
+            queries_output_path = output_src_path
             if not os.path.exists(queries_output_path):
                 os.makedirs(queries_output_path)
 
@@ -198,7 +197,7 @@ def main(source_file, output_path):
             ## Permissions Part
 
             # 出力ディレクトリ
-            Permissions_output_path = os.path.join(output_path, "xml")
+            Permissions_output_path = output_xml_path
 
             # 4バイトのリトルエンディアンがzipファイルの長さ
             zpc_length = int.from_bytes(bin_stream[zpc_position:zpc_position + 4], byteorder='little')
@@ -219,8 +218,7 @@ def main(source_file, output_path):
             ## Metadata XML Part
 
             # 出力ディレクトリ
-            MetadataXML_output_path = os.path.join(output_path, "xml")
-            MetadataXML_output_path = os.path.join(MetadataXML_output_path, "Metadata")
+            MetadataXML_output_path = os.path.join(output_xml_path, "Metadata")
             if not os.path.exists(MetadataXML_output_path):
                 os.makedirs(MetadataXML_output_path)
 
@@ -265,8 +263,7 @@ def main(source_file, output_path):
             ## Permissions Bindings Part
 
             # 出力ディレクトリ
-            Permissions_Bindings_output_path = os.path.join(output_path, "xml")
-            Permissions_Bindings_output_path = os.path.join(Permissions_Bindings_output_path, "Permissions_Bindings")
+            Permissions_Bindings_output_path = os.path.join(output_xml_path, "Permissions_Bindings")
             if not os.path.exists(Permissions_Bindings_output_path):
                 os.makedirs(Permissions_Bindings_output_path)
 
@@ -296,8 +293,11 @@ if __name__ == '__main__':
         src = Path(source_file)
         basename = src.stem
         dest = Path(root.joinpath(basename))
-        dest.mkdir(parents=True, exist_ok=True)
-        rmtree(dest.absolute(), ignore_errors=True)
+        destsrc = Path(dest.joinpath('QueryCodes')) # Power Queryのソースコードの出力先
+        destsrc.mkdir(parents=True, exist_ok=True)
+        destxml = Path(dest.joinpath('xml'))        # Power Queryの管理XMLの出力先
+        destxml.mkdir(parents=True, exist_ok=True)
+        rmtree(destsrc.absolute(), ignore_errors=True)
+        rmtree(destxml.absolute(), ignore_errors=True)
 
-        main(src, dest)
-
+        main(src, destsrc, destxml)
