@@ -1,6 +1,7 @@
 import os, sys, io, re
 import base64, zipfile
 import urllib.parse
+from shutil import rmtree
 from pathlib import Path
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
@@ -11,9 +12,11 @@ OFFICE_FILE_EXTENSIONS = (
 )
 
 def get_args():
-    parser = ArgumentParser(description='')
+    parser = ArgumentParser(description='Power Queryのソースコードおよび管理情報の展開')
     parser.add_argument('sources', metavar='MS_OFFICE_FILE', type=str, nargs='+',
                         help='展開するExcelワークブックのファイルまたはディレクトリへのパス.')
+    parser.add_argument('--dest', type=str, default='.',
+                        help='展開先のディレクトリ [規定値: .].')
     parser.add_argument('--recursive', action='store_true',
                         help='sourcesパラメータにディレクトリが指定されている場合、サブディレクトリを再帰的に検索する.')
     return parser.parse_args()
@@ -122,8 +125,10 @@ def zpc_extract(zpc, package_output_path, queries_output_path):
             zpc_content_string = zpc_content.decode()
 
             if zpc_name == 'Formulas/Section1.m':
-                #クエリーのソースコード出力
+                #クエリーのソースコードごとの出力
                 output_queries(zpc_content_string, queries_output_path)
+                #ファイル出力
+                file_output(zpc_content_string, zpc_name, package_output_path, 'text')
             else:
                 #その他パッケージ
                 zpc_content_string = pretty_Xml(zpc_content_string) # XMLの場合整形
@@ -143,7 +148,7 @@ def pretty_Xml(content_string):
     return minidom.parseString(content_string).toprettyxml()
 
 
-def main(source_file):
+def main(source_file, output_path):
     zip_object  = zipfile.ZipFile(source_file)
 
     # ワークブックをzipファイルとして格納されているファイルを確認する
@@ -162,12 +167,6 @@ def main(source_file):
         if root.tag[-10:] == 'DataMashup':
             base64_str = root.text
 
-            #出力先ディレクトリ
-            source_path = os.path.dirname(source_file)
-            output_path = os.path.join(os.path.dirname(source_file), os.path.splitext(os.path.basename(source_file))[0])
-            if not os.path.exists(output_path):
-                os.makedirs(output_path)
-
             # Base64デコード
             bin_stream  = base64.b64decode(base64_str.encode())
 
@@ -177,7 +176,8 @@ def main(source_file):
             ## Package Part
 
             # 出力ディレクトリ
-            package_output_path = os.path.join(output_path, "Package")
+            package_output_path = os.path.join(output_path, "xml")
+            package_output_path = os.path.join(package_output_path, "Package")
             if not os.path.exists(package_output_path):
                 os.makedirs(package_output_path)
 
@@ -198,7 +198,7 @@ def main(source_file):
             ## Permissions Part
 
             # 出力ディレクトリ
-            Permissions_output_path = output_path
+            Permissions_output_path = os.path.join(output_path, "xml")
 
             # 4バイトのリトルエンディアンがzipファイルの長さ
             zpc_length = int.from_bytes(bin_stream[zpc_position:zpc_position + 4], byteorder='little')
@@ -213,13 +213,14 @@ def main(source_file):
 
 
             # Metadataの長さ (使用しない)
-            Metadata_Length = int.from_bytes(bin_stream[zpc_position:zpc_position + 4], byteorder='little')
+            # Metadata_Length = int.from_bytes(bin_stream[zpc_position:zpc_position + 4], byteorder='little')
             zpc_position += 4
 
             ## Metadata XML Part
 
             # 出力ディレクトリ
-            MetadataXML_output_path = os.path.join(output_path, "Metadata")
+            MetadataXML_output_path = os.path.join(output_path, "xml")
+            MetadataXML_output_path = os.path.join(MetadataXML_output_path, "Metadata")
             if not os.path.exists(MetadataXML_output_path):
                 os.makedirs(MetadataXML_output_path)
 
@@ -264,7 +265,8 @@ def main(source_file):
             ## Permissions Bindings Part
 
             # 出力ディレクトリ
-            Permissions_Bindings_output_path = os.path.join(output_path, "Permissions_Bindings")
+            Permissions_Bindings_output_path = os.path.join(output_path, "xml")
+            Permissions_Bindings_output_path = os.path.join(Permissions_Bindings_output_path, "Permissions_Bindings")
             if not os.path.exists(Permissions_Bindings_output_path):
                 os.makedirs(Permissions_Bindings_output_path)
 
@@ -284,7 +286,18 @@ def main(source_file):
 
 if __name__ == '__main__':
     args = get_args()
+    root = Path(args.dest)
+    if not root.exists():
+        root.mkdir(parents=True)
+    elif not root.is_dir():
+        raise FileExistsError
 
     for source_file in get_source_paths(args.sources, args.recursive):
-        main(source_file)
+        src = Path(source_file)
+        basename = src.stem
+        dest = Path(root.joinpath(basename))
+        dest.mkdir(parents=True, exist_ok=True)
+        rmtree(dest.absolute(), ignore_errors=True)
+
+        main(src, dest)
 
