@@ -1,6 +1,7 @@
 import os, sys, io, re
 import base64, zipfile
 import urllib.parse
+import chardet
 from shutil import rmtree
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -159,8 +160,9 @@ def main(source_file, output_src_path, output_xml_path):
             continue
 
         # 該当するファイルを取り出す
-        xml_string = zip_object.open(arcfile, 'r').read()
-        xml_string = xml_string.decode('utf-16')
+        xml_bytes = zip_object.open(arcfile, 'r').read()
+        encoding = chardet.detect(xml_bytes)
+        xml_string = xml_bytes.decode(encoding['encoding'])
         root = ET.fromstring(xml_string)
 
         # タグがDataMashupのitemが対象
